@@ -27,20 +27,35 @@ jobs:
       nodeVersion: "v20.5.1"
     steps:
       - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
-        with:
-          node-version: ${{ env.nodeVersion }}
-      - name: Set homedir
-        id: home
+      - name: Set env
+        id: env
         run: |
           echo "home=$HOME" >> $GITHUB_OUTPUT
+          echo "yarnGlobalCache=$(corepack yarn cache dir)" >> $GITHUB_OUTPUT
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "argument=${{ github.event.inputs.argument }}" >> $GITHUB_OUTPUT
+            echo "projectName=${{ github.event.inputs.projectName }}" >> $GITHUB_OUTPUT
+            echo "nodeVersion=${{ github.event.inputs.nodeVersion }}" >> $GITHUB_OUTPUT
+          else
+            echo "argument=${{ env.argument }}" >> $GITHUB_OUTPUT
+            echo "projectName=${{ env.projectName }}" >> $GITHUB_OUTPUT
+            echo "nodeVersion=${{ env.nodeVersion }}" >> $GITHUB_OUTPUT
+          fi
+      - uses: actions/setup-node@v3
+        with:
+          node-version: ${{ steps.env.outputs.nodeVersion }}
+      - name: Cache
+        uses: actions/cache@v2
+        with:
+          key: ${{ runner.os }}-yarn-cache
+          path: ${{ steps.env.outputs.yarnGlobalCache }}
       - name: Create Next.js Project
-        working-directory: ${{ steps.home.outputs.home }}
+        working-directory: ${{ steps.env.outputs.home }}
         run: |
           corepack enable
-          corepack yarn create next-app "${{ env.projectName }}" ${{ env.argument }}
+          corepack yarn create next-app "${{ steps.env.outputs.projectName }}" ${{ steps.env.outputs.argument }}
       - name: Set yarn version to berry
-        working-directory: "${{ steps.home.outputs.home }}/${{ env.projectName }}"
+        working-directory: "${{ steps.env.outputs.home }}/${{ steps.env.outputs.projectName }}"
         env:
           YARN_ENABLE_IMMUTABLE_INSTALLS: false
         run: |
@@ -49,18 +64,18 @@ jobs:
           sed -i 's/^nodeLinker/# nodeLinker/' .yarnrc.yml
           corepack yarn
       - name: Fix repo
-        working-directory: "${{ steps.home.outputs.home }}/${{ env.projectName }}"
+        working-directory: "${{ steps.env.outputs.home }}/${{ steps.env.outputs.projectName }}"
         run: |
           curl -kLfsS https://github.com/github/gitignore/raw/main/Node.gitignore >> .gitignore
           corepack yarn dlx @yarnpkg/sdks vscode
       - name: Compress repo
-        working-directory: "${{ steps.home.outputs.home }}"
+        working-directory: "${{ steps.env.outputs.home }}"
         run: |
-          cd "${{ env.projectName }}"
+          cd "${{ steps.env.outputs.projectName }}"
           rm -fr .yarn/cache .yarn/unplugged .pnp.*
           cd -
-          7z a -mx9 -mmt4 "${{ steps.home.outputs.home }}/${{ env.projectName }}.7z" "${{ env.projectName }}"
+          7z a -mx9 -mmt4 "${{ steps.env.outputs.home }}/${{ steps.env.outputs.projectName }}.7z" "${{ steps.env.outputs.projectName }}"
       - uses: actions/upload-artifact@v3
         with:
-          name: "${{ env.projectName }}.7z"
-          path: "${{ steps.home.outputs.home }}/${{ env.projectName }}.7z"
+          name: "${{ steps.env.outputs.projectName }}.7z"
+          path: "${{ steps.env.outputs.home }}/${{ steps.env.outputs.projectName }}.7z"
