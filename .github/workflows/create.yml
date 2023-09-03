@@ -44,6 +44,7 @@ jobs:
           corepack yarn set version berry
           corepack yarn
           sed -i 's/^nodeLinker/# nodeLinker/' .yarnrc.yml
+          export
           corepack yarn
       - name: Fix repo
         working-directory: "${{ steps.home.outputs.home }}/${{ env.projectName }}"
