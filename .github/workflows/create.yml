@@ -11,26 +11,40 @@ jobs:
       argument: '--src-dir --app --eslint --tailwind --typescript --import-alias "@/*"'
       projectName: newproject
       nodeVersion: "v20.5.1"
+      HOME: ""
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v3
         with:
           node-version: ${{ env.nodeVersion }}
+      - name: Set homedir
+        run: |
+          echo "HOME=$HOME" >> $GITHUB_ENV
       - name: Create Next.js Project
+        working-directory: ${{ env.HOME }}
         run: |
           corepack enable
           corepack yarn create next-app "${{ env.projectName }}" ${{ env.argument }}
-          cd "${{ env.projectName }}"
+      - name: Set yarn version to berry
+        working-directory: "${{ env.HOME }}/${{ env.projectName }}"
+        run: |
           corepack yarn set version berry
           corepack yarn
           sed -i 's/^nodeLinker/# nodeLinker/' .yarnrc.yml
           corepack yarn
+      - name: Fix repo
+        working-directory: "${{ env.HOME }}/${{ env.projectName }}"
+        run: |
           curl -kLfsS https://github.com/github/gitignore/raw/main/Node.gitignore >> .gitignore
           corepack yarn dlx @yarnpkg/sdks vscode
+      - name: Compress repo
+        working-directory: "${{ env.HOME }}"
+        run: |
+          cd "${{ env.projectName }}"
           rm -fr .yarn/cache .yarn/unplugged .pnp.*
           cd -
-          7z a -mx9 -mmt4 "${{ env.projectName }}.7z" "${{ env.projectName }}"
+          7z a -mx9 -mmt4 "${{ env.HOME }}/${{ env.projectName }}.7z" "${{ env.projectName }}"
       - uses: actions/upload-artifact@v3
         with:
           name: "${{ env.projectName }}.7z"
-          path: "${{ env.projectName }}.7z"
+          path: "${{ env.HOME }}/${{ env.projectName }}.7z"
