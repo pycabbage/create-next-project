@@ -22,9 +22,24 @@ jobs:
     name: Create Next.js Project
     runs-on: ubuntu-latest
     env:
-      argument: '--src-dir --app --eslint --tailwind --typescript --import-alias "@/*"'
-      projectName: newproject
-      nodeVersion: "v20.5.1"
+      argument: |-
+        ${{ 
+          github.event_name == 'workflow_dispatch' 
+            && github.event.inputs.argument 
+            || '--src-dir --app --eslint --tailwind --typescript --import-alias "@/*"'
+        }}
+      projectName: |-
+        ${{ 
+          github.event_name == 'workflow_dispatch' 
+            && github.event.inputs.projectName 
+            || 'newproject'
+        }}
+      nodeVersion: |-
+        ${{ 
+          github.event_name == 'workflow_dispatch' 
+            && github.event.inputs.nodeVersion 
+            || 'v20.5.1'
+        }}
     steps:
       - uses: actions/checkout@v3
       - name: Set env
@@ -32,18 +47,9 @@ jobs:
         run: |
           echo "home=$HOME" >> $GITHUB_OUTPUT
           echo "yarnGlobalCache=$(corepack yarn cache dir)" >> $GITHUB_OUTPUT
-          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
-            echo "argument=${{ github.event.inputs.argument }}" >> $GITHUB_OUTPUT
-            echo "projectName=${{ github.event.inputs.projectName }}" >> $GITHUB_OUTPUT
-            echo "nodeVersion=${{ github.event.inputs.nodeVersion }}" >> $GITHUB_OUTPUT
-          else
-            echo "argument=${{ env.argument }}" >> $GITHUB_OUTPUT
-            echo "projectName=${{ env.projectName }}" >> $GITHUB_OUTPUT
-            echo "nodeVersion=${{ env.nodeVersion }}" >> $GITHUB_OUTPUT
-          fi
       - uses: actions/setup-node@v3
         with:
-          node-version: ${{ steps.env.outputs.nodeVersion }}
+          node-version: ${{ env.nodeVersion }}
       - name: Cache
         uses: actions/cache@v2
         with:
@@ -53,9 +59,9 @@ jobs:
         working-directory: ${{ steps.env.outputs.home }}
         run: |
           corepack enable
-          corepack yarn create next-app "${{ steps.env.outputs.projectName }}" ${{ steps.env.outputs.argument }}
+          corepack yarn create next-app "${{ env.projectName }}" ${{ env.argument }}
       - name: Set yarn version to berry
-        working-directory: "${{ steps.env.outputs.home }}/${{ steps.env.outputs.projectName }}"
+        working-directory: "${{ steps.env.outputs.home }}/${{ env.projectName }}"
         env:
           YARN_ENABLE_IMMUTABLE_INSTALLS: false
         run: |
@@ -64,18 +70,18 @@ jobs:
           sed -i 's/^nodeLinker/# nodeLinker/' .yarnrc.yml
           corepack yarn
       - name: Fix repo
-        working-directory: "${{ steps.env.outputs.home }}/${{ steps.env.outputs.projectName }}"
+        working-directory: "${{ steps.env.outputs.home }}/${{ env.projectName }}"
         run: |
           curl -kLfsS https://github.com/github/gitignore/raw/main/Node.gitignore >> .gitignore
           corepack yarn dlx @yarnpkg/sdks vscode
       - name: Compress repo
         working-directory: "${{ steps.env.outputs.home }}"
         run: |
-          cd "${{ steps.env.outputs.projectName }}"
+          cd "${{ env.projectName }}"
           rm -fr .yarn/cache .yarn/unplugged .pnp.*
           cd -
-          7z a -mx9 -mmt4 "${{ steps.env.outputs.home }}/${{ steps.env.outputs.projectName }}.7z" "${{ steps.env.outputs.projectName }}"
+          7z a -mx9 -mmt4 "${{ steps.env.outputs.home }}/${{ env.projectName }}.7z" "${{ env.projectName }}"
       - uses: actions/upload-artifact@v3
         with:
-          name: "${{ steps.env.outputs.projectName }}.7z"
-          path: "${{ steps.env.outputs.home }}/${{ steps.env.outputs.projectName }}.7z"
+          name: "${{ env.projectName }}.7z"
+          path: "${{ steps.env.outputs.home }}/${{ env.projectName }}.7z"
