@@ -19,6 +19,7 @@ on:
 
 jobs:
   create:
+    name: Create Next.js Project
     runs-on: ubuntu-latest
     env:
       argument: '--src-dir --app --eslint --tailwind --typescript --import-alias "@/*"'
@@ -40,11 +41,12 @@ jobs:
           corepack yarn create next-app "${{ env.projectName }}" ${{ env.argument }}
       - name: Set yarn version to berry
         working-directory: "${{ steps.home.outputs.home }}/${{ env.projectName }}"
+        env:
+          YARN_ENABLE_IMMUTABLE_INSTALLS: false
         run: |
           corepack yarn set version berry
           corepack yarn
           sed -i 's/^nodeLinker/# nodeLinker/' .yarnrc.yml
-          export
           corepack yarn
       - name: Fix repo
         working-directory: "${{ steps.home.outputs.home }}/${{ env.projectName }}"
